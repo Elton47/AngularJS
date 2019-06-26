@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>AngularJS</title>
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.7.8/angular.min.js"></script>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+    }
+    body > main {
+      padding: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+    }
+    body > main > * {
+      flex: 1;
+      margin: .5rem;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+    th, td {
+      padding: .25rem .75rem;
+      text-align: start;
+    }
+    th {
+      background-color: #6c6c6c;
+      color: white;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+    }
+    th:first-of-type {
+      border-top-left-radius: 4px;
+    }
+    th:last-of-type {
+      border-top-right-radius: 4px;
+    }
+    th:not(:first-of-type) {
+      border-left: 1px solid #ccc;
+    }
+    td {
+      border: 1px solid #ccc;
+    }
+    td:last-of-type > span {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    button {
+      border: none;
+      background-color: #6c6c6c;
+      color: white;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+      padding: .25rem .75rem;
+      border-radius: 4px;
+      transition: background-color .15s ease;
+      cursor: pointer;
+    }
+    button:hover, button:focus, button:active {
+      outline: none;
+      background-color: #5c5c5c
+    }
+    button:disabled {
+      background-color: #9c9c9c;
+      cursor: default;
+    }
+    select {
+      width: 173px; /* Same as input */
+    }
+  </style>
+  <script>
+    (() => {
+      const AppModule = angular.module('app', [])
+      const AppController = ($scope) => {
+      };
+      const EmployeeService = ($http) => {
+        return {
+          getAll: () => $http.get('http://localhost:3000/employees'),
+          getById: (id) => $http.get(`http://localhost:3000/employees/${id}`),
+          create: (request) => $http.post('http://localhost:3000/employees', request),
+          update: (id, request) => $http.put(`http://localhost:3000/employees/${id}`, request),
+          delete: (id) => $http.delete(`http://localhost:3000/employees/${id}`)
+        }
+      };
+      const CompanyService = ($http) => {
+        return {
+          getAll: () => $http.get('http://localhost:3000/companies')
+        }
+      };
+      const NestedObjectValueFilter = () => (object, field) => {
+        if (object && field && field.includes('.')) {
+          return field.split('.').reduce((acc, cur) => acc && acc[cur], object) || '';
+        }
+        return '';
+      };
+      const FormController = ($scope, EmployeeService, CompanyService) => {
+        CompanyService.getAll().then(response => {
+          $scope.companies = response.data;
+          if ($scope.companies && $scope.companies.length && !$scope.selectedEmployee) {
+            $scope.company = $scope.companies[0];
+          }
+        });
+        $scope.buildForm = (selectedEmployee = null) => {
+          $scope.selectedEmployee = selectedEmployee;
+          $scope.name = $scope.selectedEmployee ? $scope.selectedEmployee.name : '';
+          $scope.company = $scope.selectedEmployee ? $scope.selectedEmployee.company : null;
+        }
+        $scope.submit = (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          if ($scope.selectedEmployee) {
+            EmployeeService.update($scope.selectedEmployee.id, { ...$scope.selectedEmployee, name: $scope.name, company: $scope.company }).then(() => $scope.clear());
+          } else {
+            EmployeeService.create({ name: $scope.name, company: $scope.company }).then(() => $scope.clear());
+          }
+        }
+        $scope.clear = () => {
+          $scope.selectedEmployee = null;
+          $scope.name = '';
+          $scope.company = null;
+        }
+      };
+      const ListController = ($scope, EmployeeService) => {
+        $scope.columns = [
+          { header: 'Name', field: 'name' },
+          { header: 'Company', field: 'company.name' }
+        ];
+        EmployeeService.getAll().then(response => $scope.employees = response.data);
+        $scope.update = (selectedEmployee) => {
+        }
+        $scope.delete = (selectedEmployee) => {
+          if (confirm(`Are you sure you want to delete the employee "${selectedEmployee.name}" of company "${selectedEmployee.company.name}"? This cannot be undone!`)) {
+            EmployeeService.delete(selectedEmployee.id).then(() => $scope.employees = $scope.employees.filter(employee => employee.id !== selectedEmployee.id));
+          }
+        }
+      };
+      AppModule.factory('employeeService', EmployeeService);
+      AppModule.factory('companyService', CompanyService);
+      AppModule.filter('nestedObjectValueFilter', NestedObjectValueFilter);
+      AppModule.controller('appController', AppController);
+      AppModule.controller('formController', ['$scope', 'employeeService', 'companyService', FormController]);
+      AppModule.controller('listController', ['$scope', 'employeeService', ListController]);
+    })();
+  </script>
+</head>
+<body>
+  <main ng-app="app" ng-controller="appController">
+    <fieldset>
+      <legend>Employees</legend>
+      <table ng-controller="listController">
+        <thead>
+          <tr>
+            <th ng-repeat="column in columns">{{ column.header }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr ng-repeat="employee in employees">
+            <td ng-repeat="column in columns">
+              <span>
+                {{ column.field.includes('.') ? (employee | nestedObjectValueFilter: column.field) : employee[column.field] }}
+                <span ng-show="$index === columns.length - 1" class="actions">
+                  <button type="button" ng-click="update(employee)">Update</button>
+                  <button type="button" ng-click="delete(employee)">Delete</button>
+                </span>
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </fieldset>
+    <form id="form" ng-ref="form" ng-submit="submit($event)" ng-controller="formController" ng-init="buildForm()">
+      <fieldset form="form">
+        <legend>Form</legend>
+        <br>
+        <label for="name">Name:{{ selectedEmployee ? (' (old: "' + selectedEmployee.name + '")') : '' }}</label>
+        <br>
+        <input type="text" name="name" ng-model="name" required minlength="2" maxlength="45">
+        <br>
+        <br>
+        <label for="company">Company:</label>
+        <br>
+        <select type="text" name="company" ng-model="company" ng-options="company as company.name for company in companies track by company.id" required></select>
+        <br>
+        <br>
+        <button ng-disabled="form.$invalid" type="submit">{{ selectedEmployee ? 'Update' : 'Create' }}</button>
+        <button ng-show="selectedEmployee" type="button" ng-click="clear()">Cancel</button>
+      </fieldset>
+    </form>
+  </main>
+</body>
+</html>

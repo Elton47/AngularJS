@@ -1,0 +1,38 @@
+{
+  "companies": [
+    {
+      "id": 1,
+      "name": "ikubINFO"
+    },
+    {
+      "id": 2,
+      "name": "Microsoft"
+    },
+    {
+      "id": 3,
+      "name": "Google"
+    },
+    {
+      "id": 4,
+      "name": "Contoso LLC"
+    }
+  ],
+  "employees": [
+    {
+      "id": 1,
+      "name": "John Doe",
+      "company": {
+        "id": "4",
+        "name": "Contoso LLC"
+      }
+    },
+    {
+      "id": 2,
+      "name": "Elton Memishaj",
+      "company": {
+        "id": 1,
+        "name": "ikubINFO"
+      }
+    }
+  ]
+}
