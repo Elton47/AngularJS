@@ -79,6 +79,10 @@
       background-color: #9c9c9c;
       cursor: default;
     }
+    button.live-update-button {
+      margin-bottom: .5rem;
+      float: right;
+    }
     select {
       width: 173px; /* Same as input */
     }
@@ -111,13 +115,20 @@
       };
       const FormController = ($scope, $rootScope, EmployeeService, CompanyService) => {
         $scope.EmployeeService = EmployeeService;
-        CompanyService.getAll().then(response => {
-          $scope.companies = response.data;
-          if ($scope.companies && $scope.companies.length && !EmployeeService.selectedEmployee) {
-            $scope.company = $scope.companies[0];
-          }
-        });
+        $scope.companiesLoaded = false;
+        $scope.loadCompanies = () => {
+          CompanyService.getAll().then(response => {
+            $scope.companiesLoaded = true;
+            $scope.companies = response.data;
+            if ($scope.companies && $scope.companies.length && !EmployeeService.selectedEmployee) {
+              $scope.company = $scope.companies[0];
+            }
+          });
+        }
         $scope.buildForm = () => {
+          if (!$scope.companiesLoaded) {
+            $scope.loadCompanies();
+          }
           $scope.name = EmployeeService.selectedEmployee ? EmployeeService.selectedEmployee.name : '';
           $scope.company = EmployeeService.selectedEmployee ? EmployeeService.selectedEmployee.company : $scope.companies && $scope.companies.length ? $scope.companies[0] : null;
         }
@@ -151,11 +162,25 @@
       };
       const ListController = ($scope, $rootScope, EmployeeService) => {
         $scope.EmployeeService = EmployeeService;
+        $scope.stopLoadingEmployees = false;
         $scope.columns = [
           { header: 'Name', field: 'name' },
           { header: 'Company', field: 'company.name' }
         ];
-        EmployeeService.getAll().then(response => $scope.employees = response.data);
+        $scope.loadEmployees = () => {
+          EmployeeService.getAll().then(response => {
+            $scope.employees = response.data;
+            if (!$scope.stopLoadingEmployees) {
+              setTimeout($scope.loadEmployees, 2000);
+            }
+          });
+        }
+        $scope.toggleLiveUpdates = () => {
+          $scope.stopLoadingEmployees = !$scope.stopLoadingEmployees;
+          if (!$scope.stopLoadingEmployees) {
+            $scope.loadEmployees();
+          }
+        }
         $scope.update = (selectedEmployee) => {
           EmployeeService.selectedEmployee = selectedEmployee;
           $rootScope.$broadcast('selectedEmployee');
@@ -185,9 +210,10 @@
 </head>
 <body>
   <main ng-app="app" ng-controller="appController">
-    <fieldset>
+    <fieldset ng-controller="listController" ng-init="loadEmployees()">
       <legend>Employees</legend>
-      <table ng-controller="listController">
+      <button type="button" class="live-update-button" ng-click="toggleLiveUpdates()">{{ (stopLoadingEmployees ? 'Enable' : 'Disable') + ' Live Updates' }}</button>
+      <table>
         <thead>
           <tr>
             <th ng-repeat="column in columns">{{ column.header }}</th>
@@ -214,7 +240,7 @@
         <br>
         <label for="name">Name:{{ EmployeeService.selectedEmployee && name !== EmployeeService.selectedEmployee.name ? (' (old: "' + EmployeeService.selectedEmployee.name + '")') : '' }}</label>
         <br>
-        <input type="text" name="name" ng-model="name" required minlength="2" maxlength="45">
+        <input type="text" name="name" ng-model="name" required minlength="2" maxlength="45" autocomplete="off">
         <br>
         <br>
         <label for="company">Company:{{ EmployeeService.selectedEmployee && company && company.id !== EmployeeService.selectedEmployee.company.id ? (' (old: "' + EmployeeService.selectedEmployee.company.name + '")') : '' }}</label>
